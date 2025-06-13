@@ -1,0 +1,9 @@
+# chunk size : 
+chunk_size : 100000 
+
+# path to parent dir 
+parent_dir : /data/ashmit_data/
+
+# date 
+date : '20250519'
+
