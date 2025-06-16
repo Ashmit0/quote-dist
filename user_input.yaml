@@ -7,3 +7,13 @@ parent_dir : /data/ashmit_data/
 # date 
 date : '20250519'
 
+# near and far future codes : 
+near : K25 
+far : M25 
+farfar : N25
+
+# underlyin to look at : 
+underlying : 'HFCL'
+
+# contract master path : 
+contract_dir : /home/ashmit/contractc
