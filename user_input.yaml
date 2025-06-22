@@ -13,7 +13,12 @@ far : M25
 farfar : N25
 
 # underlyin to look at : 
-underlying : 'HFCL'
+underlying : HFCL
 
 # contract master path : 
 contract_dir : /home/ashmit/contractc
+
+# time windows : 
+t1 : 200 # in mili seconds 
+k : 5 
+T : 300000 # time in mili after which to show the results 
