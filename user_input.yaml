@@ -2,7 +2,7 @@
 chunk_size : 100000 
 
 # path to parent dir 
-parent_dir : /Users/ashmitbathla/Documents/quote-dist/data
+parent_dir : /data/ashmit_data/
 
 # date 
 date : '20250519'
@@ -16,10 +16,15 @@ farfar : N25
 underlying : HFCL
 
 # contract master path : 
-contract_dir : /Users/ashmitbathla/Documents/quote-dist/data/contrat
+contract_dir : /home/ashmit/contractc
 
 # time windows : 
-t1 : 200 # in mili seconds 
+t1 : 200000000 # in nanao seconds 
 alpha : 5 
 mu : 2 
-T : 300000 # time in mili after which to show the results 
+T : 300000000000 # time in nano after which to show the results 
+
+# amount of deviation allowed in spread price, in units of tick size 
+beta : 3 
+
+max_level : 15 
