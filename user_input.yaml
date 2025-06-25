@@ -27,4 +27,4 @@ T : 300000000000 # time in nano after which to show the results
 # amount of deviation allowed in spread price, in units of tick size 
 beta : 3 
 
-max_level : 15 
+theta : 3 
