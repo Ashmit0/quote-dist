@@ -28,3 +28,6 @@ T : 300000000000 # time in nano after which to show the results
 beta : 3 
 
 theta : 3 
+
+# max_level on the far side for new tick to be considered as quoting candidates : 
+max_level  : 10 
