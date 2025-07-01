@@ -19,9 +19,9 @@ underlying : HFCL
 contract_dir : data/contrat
 
 # time windows : 
-t1 : 2000000 # in nanao seconds 
-alpha : 5 
-mu : 200000
+t1 : 40000 # in nanao seconds 
+alpha : 250 
+mu : 20000
 T : 300000000000 # time in nano after which to show the results 
 
 # amount of deviation allowed in spread price, in units of tick size 
@@ -32,4 +32,4 @@ theta : 3
 # max_level on the far side for new tick to be considered as quoting candidates : 
 max_level  : 10 
 
-save_path : something 
+save_path : /Users/ashmitbathla/Documents/quote-dist/data/result 
