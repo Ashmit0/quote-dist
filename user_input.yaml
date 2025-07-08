@@ -24,12 +24,13 @@ alpha : 250
 mu : 20000
 T : 300000000000 # time in nano after which to show the results 
 
-# amount of deviation allowed in spread price, in units of tick size 
-beta : 3 
+# amount of deviation allowed in spread price, in percent of the origional spred price 
+beta : 30 
 
-theta : 3 
+theta : 1
 
 # max_level on the far side for new tick to be considered as quoting candidates : 
-max_level  : 10 
+max_level  : 5 
 
-save_path : /Users/ashmitbathla/Documents/quote-dist/data/result 
+result_path : /Users/ashmitbathla/Documents/quote-dist/data/results/quotes
+log_path : /Users/ashmitbathla/Documents/quote-dist/data/results/logs
