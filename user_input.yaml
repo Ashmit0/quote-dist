@@ -2,7 +2,7 @@
 chunk_size : 100000 
 
 # path to parent dir 
-parent_dir : data/
+parent_dir : /data/ashmit_data
 
 # date 
 date : '20250519'
@@ -13,10 +13,10 @@ far : M25
 farfar : N25
 
 # underlyin to look at : 
-underlying : HFCL
+underlying : DIXON
 
 # contract master path : 
-contract_dir : data/contrat
+contract_dir : /home/ashmit/contractc
 
 # time windows : 
 t1 : 40000 # in nanao seconds 
@@ -25,11 +25,12 @@ mu : 20000
 T : 300000000000 # time in nano after which to show the results 
 
 # amount of deviation allowed in spread price, in units of tick size 
-beta : 3 
+beta : 30 
 
-theta : 3 
+theta : 1
 
 # max_level on the far side for new tick to be considered as quoting candidates : 
-max_level  : 10 
+max_level  : 5 
 
-save_path : /Users/ashmitbathla/Documents/quote-dist/data/result 
+result_path : /home/ashmit/work/quote-dist/results/quotes_csv
+log_path : /home/ashmit/work/quote-dist/results/logs
