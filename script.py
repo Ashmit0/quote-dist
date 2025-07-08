@@ -72,6 +72,9 @@ ns_cols = ['exchange_epoch_nanos' , 'server_epoch_nanos' , 'capture_epoch_nanos'
 with open('user_input.yaml' , 'r' ) as f : 
     inputs = yaml.safe_load( f ) 
 
+inputs['underlying'] = sys.argv[1]
+inputs['date'] = sys.argv[2]
+
 
 usecols = [header_list.index(col) for col in header_list_to_keep ]
 
@@ -1069,8 +1072,13 @@ pbar = tqdm(
 
 
 result_file = '_'.join([inputs['underlying'], inputs['date'], 'result.csv'])
+result_file = os.path.join( inputs['result_path'] , result_file )
 
-with open( 'log_file.txt' , 'w' ) as f , open( result_file , 'w') as f_result : 
+log_file = '_'.join([inputs['underlying'], inputs['date'], 'log.csv'])
+log_file = os.path.join( inputs['log_path'] , log_file ) 
+
+
+with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result : 
     
     f.write('Time,EventType,Oid,ActionTaken,foo1,foo2,UpdateId\n')
     f_result.write('Time,SpreadPrice,Qty,CurrentBookSpread,TotalQuoteOrders,FarAskDepth,TickSize\n')
@@ -1328,7 +1336,7 @@ with open( 'log_file.txt' , 'w' ) as f , open( result_file , 'w') as f_result :
             if (not verified_buffer.not_empty()) and ( possible_update_candidate_id == 0 ) and (time_check != prev_time_check) : 
             # if (time_check < prev_time_check ) : 
                 prev_time_check = time_check
-                pickle_file_name = get_pickel_file_name(inputs,time_check)
+                # pickle_file_name = get_pickel_file_name(inputs,time_check)
                 temp1 = 0 
                 temp2 = 0 
                 for val in total_quoting_orders.values() : 
@@ -1341,19 +1349,19 @@ with open( 'log_file.txt' , 'w' ) as f , open( result_file , 'w') as f_result :
                         temp2 += order['qty']  
                 
                 if temp1 == 0 : 
-                    f_result.write(f"{row['Time']},--,--,{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{0},{near_ask[near_ask_id]['total_qty']},{0.01}\n")
+                    f_result.write(f"{row['Time']},--,--,{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{0},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                 else : 
                     for sp , qty in total_quoting_orders.items() :
                         f_result.write(f"{row['Time']},{sp},{qty},{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{temp1},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                     
-                with open( pickle_file_name , 'wb' ) as foo : 
-                    pickle.dump( 
-                    {'data' : total_quoting_orders, 
-                    'time' : row['Time'] , 
-                    'temp1' : temp1 , 
-                    'temp2' : temp2 , 
-                    'num_verified' : num_verified , 
-                    'total_qty' : near_ask[near_ask_id]['total_qty']}, foo )
+                # with open( pickle_file_name , 'wb' ) as foo : 
+                #     pickle.dump( 
+                #     {'data' : total_quoting_orders, 
+                #     'time' : row['Time'] , 
+                #     'temp1' : temp1 , 
+                #     'temp2' : temp2 , 
+                #     'num_verified' : num_verified , 
+                #     'total_qty' : near_ask[near_ask_id]['total_qty']}, foo )
                 max_far_qty_top = max( max_far_qty_top , near_ask[near_ask_id]['total_qty'] )
                 new_ticks_list.append( new_tick_counts )
                 new_tick_counts = 0 
