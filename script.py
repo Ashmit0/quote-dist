@@ -1919,5 +1919,5 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
         if time >= TotalTime : 
             break 
 
-with open( os.path.join( inputs['save_path'] , 'new_ticks_list.pkl' ) , 'wb') as f : 
-    pickle.dump( new_ticks_list , f ) 
+# with open( os.path.join( inputs['save_path'] , 'new_ticks_list.pkl' ) , 'wb') as f : 
+#     pickle.dump( new_ticks_list , f ) 
