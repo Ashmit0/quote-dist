@@ -564,12 +564,12 @@ class AllOrderContainers:
     
     def __init__(self) -> None: 
         self.main = {
-            'quote_cancellations' : {}  ,
-            'def_quote_cancellations' : {} ,  
-            'possible_quotes_cancellations' : {} ,  
-            'possible_def_quote_def_Cancellations' : {}, 
-            'new_orders' : {}  ,
-            'new_def_orders' : {} 
+            'quote_cancellations' : {0 : OrderContainer()} , 
+            'def_quote_cancellations' : { 0 : OrderContainer() } ,  
+            'possible_quotes_cancellations' : { 0   : OrderContainer() } ,  
+            'possible_def_quote_def_Cancellations' : { 0 : OrderContainer() } , 
+            'new_orders' : {0 : OrderContainer() }  ,
+            'new_def_orders' : { 0  : OrderContainer() } 
         }
         self.book_ids = SortedList()
         self.used_order_id_count = Counter()
@@ -782,10 +782,15 @@ class AllOrderContainers:
         return iter(self.main['quote_cancellations'].keys())
     
     def __getitem__(self, idx:int) : 
-        return list(self.main['quote_cancellations'])[idx]
+        items = list(self.main['quote_cancellations'])
+        if not items:
+            raise IndexError("quote_cancellations is empty")
+        return items[idx]
     
 all_conntainers = AllOrderContainers()
 
+
+zeta = 3 
 
         
 def hop_to_next_verified_quotes(
@@ -795,16 +800,18 @@ def hop_to_next_verified_quotes(
     dict_type:dict , 
     order_id, 
     all_conntainers:AllOrderContainers,
-    total_quoting_orders:dict , 
-    type = 'quote'  
+    total_quoting_orders:dict , f , 
+    type = 'quote' , 
 ) : 
     
     if type == 'quote' : 
         qty_type = 'total_qty' 
         price_type = 'price_cumsum'
+        action = 'HopQuoteOrder'
     else : 
         qty_type = 'total_def_qty'
         price_type = 'def_price_cumsum'
+        action = 'HopDefQuoteOrder'
     
     end_id = verified_buffer.next_verified_id(id) 
     qty = int(dict_type[id][order_id]['qty'])
@@ -813,7 +820,10 @@ def hop_to_next_verified_quotes(
         if near_ask[end_id][qty_type] < qty : 
             break 
         diff = near_ask[id][price_type][qty-1] - near_ask[end_id][price_type][qty-1] 
-        if abs( diff ) < ( beta * dict_type[id][order_id]['sp'] )/ 100 : 
+        diff = round(diff, 2)
+        # if abs( diff ) < ( beta * dict_type[id][order_id]['sp'] )/ 100 : 
+        if abs( diff ) < zeta * ticksize : 
+        # if diff == 0 : 
             # keep this in the dict : 
             dict_type[end_id][order_id] = dict_type[id][order_id].copy() 
             del dict_type[id][order_id]
@@ -822,7 +832,10 @@ def hop_to_next_verified_quotes(
                 dict_type[end_id][order_id]['sp'],
                 qty
             )
-            dict_type[end_id][order_id]['sp'] += diff 
+            dict_type[end_id][order_id]['sp'] = round( dict_type[end_id][order_id]['sp'] + diff , 2 )
+             
+            f.write(f"{time},--,{order_id},{action},{foo1},{foo2},{end_id}\n")
+            
             total_quoting_orders[dict_type[end_id][order_id]['sp']] =\
                 total_quoting_orders.get( dict_type[end_id][order_id]['sp'] , 0 ) + qty 
         else : 
@@ -833,7 +846,7 @@ def hop_to_next_verified_quotes(
         
     start_id = id + 1 
     if end_id == -1 : 
-        end_id = all_conntainers.book_ids[-1]
+        end_id = all_conntainers[-1]
     
     if start_id > end_id : 
         # now the id == end_id is the latest available id : 
@@ -843,7 +856,10 @@ def hop_to_next_verified_quotes(
         if (not all_conntainers.book_id_exist(update_id) ) or ( near_ask[update_id][qty_type] < qty ):
             continue
         diff = near_ask[id][price_type][qty-1] - near_ask[update_id][price_type][qty-1] 
-        if abs( diff ) < ( beta * dict_type[id][order_id]['sp'] )/ 100 : 
+        diff = round(diff, 2)
+        # if abs( diff ) < ( beta * dict_type[id][order_id]['sp'] )/ 100 : 
+        if abs( diff ) < zeta * ticksize :
+        # if diff == 0 :
             # keep this in the dict : 
             dict_type[update_id][order_id] = dict_type[id][order_id].copy() 
             del dict_type[id][order_id]
@@ -852,9 +868,10 @@ def hop_to_next_verified_quotes(
                 dict_type[update_id][order_id]['sp'],   
                 qty
             )
-            dict_type[update_id][order_id]['sp'] += diff 
+            dict_type[update_id][order_id]['sp'] = round( dict_type[update_id][order_id]['sp'] + diff , 2 )
             total_quoting_orders[dict_type[update_id][order_id]['sp']] =\
                 total_quoting_orders.get( dict_type[update_id][order_id]['sp'] , 0 ) + qty
+            f.write(f"{time},--,{order_id},{action},{foo1},{foo2},{update_id}\n")
             return 
         
         
@@ -864,7 +881,8 @@ def hop_to_next_verified_possible_quotes(
     id:int,
     dict_type:dict , 
     order_id,
-    all_conntainers:AllOrderContainers
+    all_conntainers:AllOrderContainers , 
+    f 
 ) : 
 
     end_id = verified_buffer.next_verified_id(id) 
@@ -885,15 +903,20 @@ def hop_to_next_verified_possible_quotes(
             else : 
                 diff_sp2 = near_ask[id]['def_price_cumsum'][qty-1] - near_ask[end_id]['def_price_cumsum'][qty-1]
 
-        if (flag1) or (abs( diff_sp1  ) < ( beta * dict_type[id][order_id]['sp1'] )/ 100) : 
-            if ( flag2 ) or ( abs( diff_sp2 ) < ( beta * dict_type[id][order_id]['sp2'] )/ 100) :
+        # if (flag1) or (abs( diff_sp1  ) < ( beta * dict_type[id][order_id]['sp1'] )/ 100) : 
+        if (flag1) or (abs( diff_sp1 ) < zeta * ticksize) :
+        # if (flag1) or (round(diff_sp1,2) == 0) :
+            # if ( flag2 ) or ( abs( diff_sp2 ) < ( beta * dict_type[id][order_id]['sp2'] )/ 100) :
+            if ( flag2 ) or ( abs( diff_sp2 ) < zeta * ticksize) :
+            # if ( flag2 ) or (round(diff_sp2,2) == 0) :
             # keep this in the dict : 
                 dict_type[end_id][order_id] = dict_type[id][order_id].copy() 
                 del dict_type[id][order_id]
                 if not flag1 : 
-                    dict_type[end_id][order_id]['sp1'] += diff_sp1
+                    dict_type[end_id][order_id]['sp1'] = round( dict_type[end_id][order_id]['sp1'] + diff_sp1 , 2 )
                 if not flag2 : 
-                    dict_type[end_id][order_id]['sp2'] += diff_sp2 
+                    dict_type[end_id][order_id]['sp2'] = round( dict_type[end_id][order_id]['sp2'] + diff_sp2 , 2 )
+                f.write(f"{time},--,{order_id},{'HopPossibleQuote'},{foo1},{foo2},{update_id}\n")
         else : 
             break 
         
@@ -902,7 +925,7 @@ def hop_to_next_verified_possible_quotes(
         
     start_id = id + 1 
     if end_id == -1 : 
-        end_id = all_conntainers.book_ids[-1]
+        end_id = all_conntainers[-1]
     
     if start_id > end_id : 
         # now the id == end_id is the latest available id : 
@@ -916,21 +939,27 @@ def hop_to_next_verified_possible_quotes(
                 continue 
             else : 
                 diff_sp1 = near_ask[id]['price_cumsum'][qty-1] - near_ask[update_id]['price_cumsum'][qty-1]
+                diff_sp1 = round(diff_sp1,2)
         if not flag2:
             if near_ask[update_id]['total_def_qty'] < qty : 
                 continue 
             else : 
                 diff_sp2 = near_ask[id]['def_price_cumsum'][qty-1] - near_ask[update_id]['def_price_cumsum'][qty-1]
-
-        if (flag1) or (abs( diff_sp1  ) < ( beta * dict_type[id][order_id]['sp1'] )/ 100) : 
-            if ( flag2 ) or ( abs( diff_sp2 ) < ( beta * dict_type[id][order_id]['sp2'] )/ 100) :
+                diff_sp2 = round(diff_sp2,2)
+        # if (flag1) or (abs( diff_sp1  ) < ( beta * dict_type[id][order_id]['sp1'] )/ 100) : 
+        if (flag1) or (abs( diff_sp1 ) < zeta * ticksize) :
+        # if (flag1) or (round(diff_sp1,2) == 0) :
+            # if ( flag2 ) or ( abs( diff_sp2 ) < ( beta * dict_type[id][order_id]['sp2'] )/ 100) :
+            if ( flag2 ) or ( abs( diff_sp2 ) < zeta * ticksize) :
+            # if ( flag2 ) or (round(diff_sp2,2) == 0) :
             # keep this in the dict : 
                 dict_type[update_id][order_id] = dict_type[id][order_id].copy() 
                 del dict_type[id][order_id]
                 if not flag1 : 
-                    dict_type[update_id][order_id]['sp1'] += diff_sp1
+                    dict_type[update_id][order_id]['sp1'] = round( dict_type[update_id][order_id]['sp1'] + diff_sp1 , 2 )
                 if not flag2 : 
-                    dict_type[update_id][order_id]['sp2'] += diff_sp2 
+                    dict_type[update_id][order_id]['sp2'] = round( dict_type[update_id][order_id]['sp2'] + diff_sp2 , 2 )
+                f.write(f"{time},--,{order_id},{'HopPossibleQuote'},{foo1},{foo2},{update_id}\n")
             return
 
 
@@ -1107,7 +1136,8 @@ def modify_tick_with_trade(
                     dict_type=quote,
                     order_id=order_id,
                     all_conntainers=all_conntainers,
-                    total_quoting_orders=total_quoting_orders,
+                    total_quoting_orders=total_quoting_orders, 
+                    f = f , 
                     type = 'quote'
                 )
                 f.write(f"{time},TradeWindow_Modify_Order,{row['oid1']},KeepQuoteOrder,{counts[0]},{counts[1]},{id}\n")
@@ -1154,7 +1184,8 @@ def modify_tick_with_trade(
                     dict_type=def_quote,
                     order_id=order_id,
                     all_conntainers=all_conntainers,
-                    total_quoting_orders=total_quoting_orders,
+                    total_quoting_orders=total_quoting_orders, 
+                    f = f , 
                     type = 'def_quote'
                 )
                 f.write(f"{time},TradeWindow_Modify_Order,{row['oid1']},KeepDefQuoteOrder,{counts[0]},{counts[1]},{id}\n")
@@ -1188,7 +1219,8 @@ def modify_tick_with_trade(
                     id = id ,
                     dict_type=possible_quotes,
                     order_id=new_order_id,
-                    all_conntainers=all_conntainers
+                    all_conntainers=all_conntainers , 
+                    f = f  
                 )
                 f.write(f"{time},TradeWindow_Modify_Order,{new_order_id},KeepPossibleOrder,{counts[0]},{counts[1]},{id}\n")
             else : 
@@ -1255,7 +1287,7 @@ top_of_far_ask = -1
 
 pbar = tqdm(
     total=100, 
-    ncols=150, 
+    ncols=125, 
     bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}] {postfix}'
     )
 
@@ -1618,8 +1650,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                         dict_type = quote if dict_type is quote_copy else def_quote,
                                         order_id = order_id,
                                         all_conntainers=all_conntainers,
-                                        total_quoting_orders=total_quoting_orders,
-                                        type = 'quote' if dict_type is quote else 'def_quote'
+                                        total_quoting_orders=total_quoting_orders, f= f , 
+                                        type = 'quote' if dict_type is quote_copy else 'def_quote'
                                     )
                                 else : 
                                     hop_to_next_verified_possible_quotes(
@@ -1628,7 +1660,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                         id = id ,
                                         dict_type = possible_quotes,
                                         order_id = order_id,
-                                        all_conntainers=all_conntainers
+                                        all_conntainers=all_conntainers , 
+                                        f = f 
                                     )
                     del quote_copy
                     del def_quote_copy
@@ -1757,7 +1790,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                             dict_type = dictionary_to_use,
                                             order_id = row['oid1'],
                                             all_conntainers=all_conntainers,
-                                            total_quoting_orders=total_quoting_orders,
+                                            total_quoting_orders=total_quoting_orders, f = f , 
                                             type = 'quote' if dictionary_to_use is quote else 'def_quote'
                                         )
                                         flag = True 
@@ -1875,7 +1908,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                 dict_type = dict_type,
                                                 order_id = match[0],
                                                 all_conntainers=all_conntainers,
-                                                total_quoting_orders=total_quoting_orders,
+                                                total_quoting_orders=total_quoting_orders, f = f , 
                                                 type = 'quote' if dict_type is quote else 'def_quote'
                                             )
                                             
@@ -1978,9 +2011,9 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                             }
                                             foo2 += match[2]
                                             if dictionary_to_use is quote :
-                                                f.write(f"{time},CancelTickInWindow,{order_id},MovePossibletoQuote,{foo1},{foo2},{update_to_id}\n")
+                                                f.write(f"{time},CancelTickInWindow,{match[0]},MovePossibletoQuote,{foo1},{foo2},{update_to_id}\n")
                                             else : 
-                                                f.write(f"{time},CancelTickInWindow,{order_id},MovePossibletoDefQuote,{foo1},{foo2},{update_to_id}\n")
+                                                f.write(f"{time},CancelTickInWindow,{match[0]},MovePossibletoDefQuote,{foo1},{foo2},{update_to_id}\n")
                                             # remove the canclled order from the known quoting orders :
                                             del possible_quotes[id][order_id]
                                             hop_to_next_verified_quotes(
@@ -1990,7 +2023,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                 dict_type = dictionary_to_use,
                                                 order_id = match[0],
                                                 all_conntainers=all_conntainers,
-                                                total_quoting_orders=total_quoting_orders,
+                                                total_quoting_orders=total_quoting_orders, f = f, 
                                                 type = 'quote' if dictionary_to_use is quote else 'def_quote'
                                             )
                                             break
@@ -2101,7 +2134,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                     id = update_to_id ,
                                                     dict_type = dict_type,
                                                     order_id = order_id,
-                                                    all_conntainers=all_conntainers,
+                                                    all_conntainers=all_conntainers, f =f ,
                                                     total_quoting_orders=total_quoting_orders,
                                                     type = 'quote'
                                                 )
@@ -2129,8 +2162,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                     id = update_to_id ,
                                                     dict_type = dict_type,
                                                     order_id = order_id,
-                                                    all_conntainers=all_conntainers,
-                                                    total_quoting_orders=total_quoting_orders,
+                                                    all_conntainers=all_conntainers, 
+                                                    total_quoting_orders=total_quoting_orders, f = f , 
                                                     type = 'def_quote'
                                                 )
                                                 f.write(f"{time},ModifyTickInWindow,{order_id},KeepDefQuoteOrder,{foo1},{foo2},{update_to_id}\n")
@@ -2161,7 +2194,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                         dict_type = quote,
                                                         order_id = new_order_id,
                                                         all_conntainers=all_conntainers,
-                                                        total_quoting_orders=total_quoting_orders,
+                                                        total_quoting_orders=total_quoting_orders, f = f, 
                                                         type = 'quote'
                                                     )
                                                     f.write(f"{time},ModifyTickInWindow,{order_id},MovePossibletoQuote,{foo1},{foo2},{update_to_id}\n")
@@ -2187,7 +2220,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                         dict_type = def_quote,
                                                         order_id = new_order_id,
                                                         all_conntainers=all_conntainers,
-                                                        total_quoting_orders=total_quoting_orders,
+                                                        total_quoting_orders=total_quoting_orders, f = f , 
                                                         type = 'def_quote'
                                                     )
                                                     f.write(f"{time},ModifyTickInWindow,{order_id},MovePossibletoDefQuote,{foo1},{foo2},{update_to_id}\n")
