@@ -22,7 +22,7 @@ contract_dir : /home/ashmit/contractc
 t1 : 40000 # in nanao seconds 
 alpha : 250 
 mu : 20000
-T : 300000000000 # time in nano after which to show the results 
+T : 60000000000 # time in nano after which to show the results 
 
 # amount of deviation allowed in spread price, in units of tick size 
 beta : 30 
