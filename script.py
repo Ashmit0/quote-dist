@@ -1081,7 +1081,7 @@ log_file = os.path.join( inputs['log_path'] , log_file )
 with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result : 
     
     f.write('Time,EventType,Oid,ActionTaken,foo1,foo2,UpdateId\n')
-    f_result.write('Time,SpreadPrice,Qty,CurrentBookSpread,TotalQuoteOrders,FarAskDepth,TickSize\n')
+    f_result.write('Time,SpreadPrice,Qty,Oid,CurrentBookSpread,TotalQuoteOrders,FarAskDepth,TickSize\n')
     
     for chunk in get_iter(): 
 
@@ -1349,11 +1349,17 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                         temp2 += order['qty']  
                 
                 if temp1 == 0 : 
-                    f_result.write(f"{row['Time']},--,--,{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{0},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
+                    f_result.write(f"{row['Time']},--,--,--,{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{0},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                 else : 
-                    for sp , qty in total_quoting_orders.items() :
-                        f_result.write(f"{row['Time']},{sp},{qty},{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{temp1},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
+                   # for sp , qty in total_quoting_orders.items() :
+                   for id_dict in quote.values():
+                       for order_id , order in id_dict.items():
+                           f_result.write(f"{row['Time']},{order['sp']},{order['qty']},{order_id},{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{temp1},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                     
+
+                   for id_dict in def_quote.values():
+                       for order_id , order in id_dict.items():
+                           f_result.write(f"{row['Time']},{order['sp']},{order['qty']},{order_id},{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{temp1},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                 # with open( pickle_file_name , 'wb' ) as foo : 
                 #     pickle.dump( 
                 #     {'data' : total_quoting_orders, 
@@ -1919,5 +1925,5 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
         if time >= TotalTime : 
             break 
 
-# with open( os.path.join( inputs['save_path'] , 'new_ticks_list.pkl' ) , 'wb') as f : 
-#     pickle.dump( new_ticks_list , f ) 
+#with open( os.path.join( inputs['save_path'] , 'new_ticks_list.pkl' ) , 'wb') as f : 
+ #   pickle.dump( new_ticks_list , f ) 
