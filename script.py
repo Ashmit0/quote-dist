@@ -1499,23 +1499,24 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                             max_qty_to_keep_def += min(book_at_id['book'][first_row,1] , book_at_terminated_id['book'][first_row,1])
                         
                     
-                    for dict_type , max_qty in zip([quote,def_quote] , [max_qty_to_keep,max_qty_to_keep_def]) : 
+                    # for dict_type , max_qty in zip([quote,def_quote] , [max_qty_to_keep,max_qty_to_keep_def]) : 
+                    for dict_type  in [quote,def_quote]: 
                         for order_id , foo in dict_type[id].items() : 
-                            if foo['qty'] <= max_qty : 
+                            # if foo['qty'] <= max_qty : 
                                 # promote to now latest terminated dict : 
-                                f.write(f"{time},VerifiedUpdateEnd,{order_id},PromoteOrderWithNoChange,{foo1},{foo2},{id}\n")
-                                dict_type[terminated_id][order_id] = foo 
-                            else : 
+                                # f.write(f"{time},VerifiedUpdateEnd,{order_id},PromoteOrderWithNoChange,{foo1},{foo2},{id}\n")
+                                # dict_type[terminated_id][order_id] = foo 
+                            # else : 
                                 # remove the order 
                                 # print( total_quoting_orders )
-                                reduce_total_quoting_orders(
-                                    total_quoting_orders=total_quoting_orders,
-                                    sp=foo['sp'],
-                                    qty=foo['qty']
-                                )
-                                foo1 -= foo['qty']
-                                foo2 -= foo['qty']
-                                f.write(f"{time},VerifiedUpdateEnd,{order_id},RemoveNotUpdatedOrder,{foo1},{foo2},{id}\n")
+                            reduce_total_quoting_orders(
+                                total_quoting_orders=total_quoting_orders,
+                                sp=foo['sp'],
+                                qty=foo['qty']
+                            )
+                            foo1 -= foo['qty']
+                            foo2 -= foo['qty']
+                            f.write(f"{time},VerifiedUpdateEnd,{order_id},RemoveNotUpdatedOrder,{foo1},{foo2},{id}\n")
                                 
                     for order_id , foo in possible_quotes[id].items() : 
                         if foo['qty'] > max( max_qty_to_keep_def , max_qty_to_keep ) : 
