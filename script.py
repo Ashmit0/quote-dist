@@ -884,6 +884,8 @@ def hop_to_next_verified_possible_quotes(
     all_conntainers:AllOrderContainers , 
     f 
 ) : 
+    if order_id not in dict_type[id] : 
+        raise ValueError('Problem Problem Problem') 
 
     end_id = verified_buffer.next_verified_id(id) 
     qty = dict_type[id][order_id]['qty']
@@ -910,18 +912,20 @@ def hop_to_next_verified_possible_quotes(
             if ( flag2 ) or ( abs( diff_sp2 ) < zeta * ticksize) :
             # if ( flag2 ) or (round(diff_sp2,2) == 0) :
             # keep this in the dict : 
-                dict_type[end_id][order_id] = dict_type[id][order_id].copy() 
-                del dict_type[id][order_id]
+                dict_type[end_id][order_id] = dict_type[id].pop( order_id ) 
                 if not flag1 : 
                     dict_type[end_id][order_id]['sp1'] = round( dict_type[end_id][order_id]['sp1'] + diff_sp1 , 2 )
                 if not flag2 : 
                     dict_type[end_id][order_id]['sp2'] = round( dict_type[end_id][order_id]['sp2'] + diff_sp2 , 2 )
                 f.write(f"{time},--,{order_id},{'HopPossibleQuote'},{foo1},{foo2},{end_id}\n")
+                
+                id = end_id 
+                end_id = verified_buffer.next_verified_id(id)
+            else : 
+                break     
         else : 
             break 
-        
-        id = end_id 
-        end_id = verified_buffer.next_verified_id(id)
+    
         
     start_id = id + 1 
     if end_id == -1 : 
@@ -953,14 +957,14 @@ def hop_to_next_verified_possible_quotes(
             if ( flag2 ) or ( abs( diff_sp2 ) < zeta * ticksize) :
             # if ( flag2 ) or (round(diff_sp2,2) == 0) :
             # keep this in the dict : 
-                dict_type[update_id][order_id] = dict_type[id][order_id].copy() 
-                del dict_type[id][order_id]
+                dict_type[update_id][order_id] = dict_type[id].pop(order_id)
                 if not flag1 : 
                     dict_type[update_id][order_id]['sp1'] = round( dict_type[update_id][order_id]['sp1'] + diff_sp1 , 2 )
                 if not flag2 : 
                     dict_type[update_id][order_id]['sp2'] = round( dict_type[update_id][order_id]['sp2'] + diff_sp2 , 2 )
                 f.write(f"{time},--,{order_id},{'HopPossibleQuote'},{foo1},{foo2},{update_id}\n")
-            return
+                
+                return
 
 
 def modify_tick_with_no_active_windows(
@@ -1212,7 +1216,6 @@ def modify_tick_with_trade(
                 new_order_id = next(script_order_id_counter)
                 order_id_map[row['oid1']] = new_order_id
                 possible_quotes[id][new_order_id] = foo
-                del possible_quotes[id][order_id]
                 hop_to_next_verified_possible_quotes(
                     verified_buffer=verified_buffer,
                     near_ask=near_ask,
@@ -1222,6 +1225,7 @@ def modify_tick_with_trade(
                     all_conntainers=all_conntainers , 
                     f = f  
                 )
+                del possible_quotes[id][order_id]
                 f.write(f"{time},TradeWindow_Modify_Order,{new_order_id},KeepPossibleOrder,{counts[0]},{counts[1]},{id}\n")
             else : 
                 # else drop it 
