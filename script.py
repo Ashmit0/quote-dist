@@ -248,8 +248,8 @@ def make_possible_quote_dict(row,near_ask:dict,near_ask_id:int)->Optional[dict]:
     main =  {
         'price' : row['price'] , 
         'qty' : qty , 
-        'sp1' : round( (row['price'] - book['price_cumsum'][qty-1])/(qty*ticksize))*ticksize ,
-        'sp2' : round( (row['price'] - book['price_cumsum'][qty+top_qty-1]\
+        'sp1' : round( (row['price']*qty - book['price_cumsum'][qty-1])/(qty*ticksize))*ticksize ,
+        'sp2' : round( (row['price']*qty - book['price_cumsum'][qty+top_qty-1]\
                         + book['price_cumsum'][top_qty-1])/(qty*ticksize))*ticksize\
                         if qty+top_qty-1 < book['total_qty'] else None , 
         'last_ask_id' : near_ask_id 
@@ -801,7 +801,8 @@ def hop_to_next_verified_quotes(
     order_id, 
     all_conntainers:AllOrderContainers,
     total_quoting_orders:dict , f , 
-    type = 'quote' , 
+    current_book_spread:float, 
+    type = 'quote' ,  
 ) : 
     
     if type == 'quote' : 
@@ -819,10 +820,9 @@ def hop_to_next_verified_quotes(
     while end_id != -1 : 
         if near_ask[end_id][qty_type] < qty : 
             break 
-        diff = near_ask[id][price_type][qty-1] - near_ask[end_id][price_type][qty-1] 
-        diff = round(diff, 2)
+        diff = (near_ask[id][price_type][qty-1] - near_ask[end_id][price_type][qty-1])/qty 
         # if abs( diff ) < ( beta * dict_type[id][order_id]['sp'] )/ 100 : 
-        if abs( diff ) < zeta * ticksize : 
+        if( abs( diff ) <= zeta * ticksize ) and  (dict_type[id][order_id]['sp'] + diff > 0 ) and ( abs(dict_type[id][order_id]['sp'] + diff  - current_book_spread) <= current_book_spread * inputs['gamma']/100 ): 
         # if diff == 0 : 
             # keep this in the dict : 
             dict_type[end_id][order_id] = dict_type[id][order_id].copy() 
@@ -832,7 +832,7 @@ def hop_to_next_verified_quotes(
                 dict_type[end_id][order_id]['sp'],
                 qty
             )
-            dict_type[end_id][order_id]['sp'] = round( dict_type[end_id][order_id]['sp'] + diff , 2 )
+            dict_type[end_id][order_id]['sp'] = round(round( (dict_type[end_id][order_id]['sp'] + diff  )/ticksize)*ticksize , 2 )
              
             f.write(f"{time},--,{order_id},{action},{foo1},{foo2},{end_id}\n")
             
@@ -855,10 +855,9 @@ def hop_to_next_verified_quotes(
     for update_id in range( end_id , start_id -1 , -1 ) : 
         if (not all_conntainers.book_id_exist(update_id) ) or ( near_ask[update_id][qty_type] < qty ):
             continue
-        diff = near_ask[id][price_type][qty-1] - near_ask[update_id][price_type][qty-1] 
-        diff = round(diff, 2)
+        diff = (near_ask[id][price_type][qty-1] - near_ask[update_id][price_type][qty-1] )/qty
         # if abs( diff ) < ( beta * dict_type[id][order_id]['sp'] )/ 100 : 
-        if abs( diff ) < zeta * ticksize :
+        if ( abs( diff ) <= zeta * ticksize ) and  (dict_type[id][order_id]['sp'] + diff > 0 ) and ( abs(dict_type[id][order_id]['sp'] + diff  - current_book_spread) <= current_book_spread * inputs['gamma']/100 ) :
         # if diff == 0 :
             # keep this in the dict : 
             dict_type[update_id][order_id] = dict_type[id][order_id].copy() 
@@ -868,7 +867,7 @@ def hop_to_next_verified_quotes(
                 dict_type[update_id][order_id]['sp'],   
                 qty
             )
-            dict_type[update_id][order_id]['sp'] = round( dict_type[update_id][order_id]['sp'] + diff , 2 )
+            dict_type[update_id][order_id]['sp'] = round(round( (dict_type[update_id][order_id]['sp'] + diff)/ticksize )*ticksize , 2 )
             total_quoting_orders[dict_type[update_id][order_id]['sp']] =\
                 total_quoting_orders.get( dict_type[update_id][order_id]['sp'] , 0 ) + qty
             f.write(f"{time},--,{order_id},{action},{foo1},{foo2},{update_id}\n")
@@ -882,7 +881,8 @@ def hop_to_next_verified_possible_quotes(
     dict_type:dict , 
     order_id,
     all_conntainers:AllOrderContainers , 
-    f 
+    f , 
+    current_book_spread:float,
 ) : 
     if order_id not in dict_type[id] : 
         raise ValueError('Problem Problem Problem') 
@@ -898,25 +898,25 @@ def hop_to_next_verified_possible_quotes(
             if near_ask[end_id]['total_qty'] < qty : 
                 break 
             else : 
-                diff_sp1 = near_ask[id]['price_cumsum'][qty-1] - near_ask[end_id]['price_cumsum'][qty-1]
+                diff_sp1 = (near_ask[id]['price_cumsum'][qty-1] - near_ask[end_id]['price_cumsum'][qty-1])/qty
         if not flag2:
             if near_ask[end_id]['total_def_qty'] < qty : 
                 break 
             else : 
-                diff_sp2 = near_ask[id]['def_price_cumsum'][qty-1] - near_ask[end_id]['def_price_cumsum'][qty-1]
+                diff_sp2 = (near_ask[id]['def_price_cumsum'][qty-1] - near_ask[end_id]['def_price_cumsum'][qty-1])/qty
 
         # if (flag1) or (abs( diff_sp1  ) < ( beta * dict_type[id][order_id]['sp1'] )/ 100) : 
-        if (flag1) or (abs( diff_sp1 ) < zeta * ticksize) :
+        if (flag1) or (( abs( diff_sp1 ) <= zeta * ticksize ) and  (dict_type[id][order_id]['sp1'] + diff_sp1 > 0 ) and ( abs(dict_type[id][order_id]['sp1'] + diff_sp1  - current_book_spread) <= current_book_spread * inputs['gamma']/100 )) :
         # if (flag1) or (round(diff_sp1,2) == 0) :
             # if ( flag2 ) or ( abs( diff_sp2 ) < ( beta * dict_type[id][order_id]['sp2'] )/ 100) :
-            if ( flag2 ) or ( abs( diff_sp2 ) < zeta * ticksize) :
+            if ( flag2 ) or ( ( abs( diff_sp2 ) <= zeta * ticksize ) and  (dict_type[id][order_id]['sp2'] + diff_sp2 > 0 ) and ( abs(dict_type[id][order_id]['sp2'] + diff_sp2  - current_book_spread) <= current_book_spread * inputs['gamma']/100 )) :
             # if ( flag2 ) or (round(diff_sp2,2) == 0) :
             # keep this in the dict : 
                 dict_type[end_id][order_id] = dict_type[id].pop( order_id ) 
                 if not flag1 : 
-                    dict_type[end_id][order_id]['sp1'] = round( dict_type[end_id][order_id]['sp1'] + diff_sp1 , 2 )
+                    dict_type[end_id][order_id]['sp1'] = round(round( (dict_type[end_id][order_id]['sp1'] + diff_sp1)/ticksize )*ticksize , 2 )
                 if not flag2 : 
-                    dict_type[end_id][order_id]['sp2'] = round( dict_type[end_id][order_id]['sp2'] + diff_sp2 , 2 )
+                    dict_type[end_id][order_id]['sp2'] = round(round( (dict_type[end_id][order_id]['sp2'] + diff_sp2 )/ticksize )*ticksize ,2 )
                 f.write(f"{time},--,{order_id},{'HopPossibleQuote'},{foo1},{foo2},{end_id}\n")
                 
                 id = end_id 
@@ -942,19 +942,17 @@ def hop_to_next_verified_possible_quotes(
             if near_ask[update_id]['total_qty'] < qty : 
                 continue 
             else : 
-                diff_sp1 = near_ask[id]['price_cumsum'][qty-1] - near_ask[update_id]['price_cumsum'][qty-1]
-                diff_sp1 = round(diff_sp1,2)
+                diff_sp1 = (near_ask[id]['price_cumsum'][qty-1] - near_ask[update_id]['price_cumsum'][qty-1])/qty
         if not flag2:
             if near_ask[update_id]['total_def_qty'] < qty : 
                 continue 
             else : 
-                diff_sp2 = near_ask[id]['def_price_cumsum'][qty-1] - near_ask[update_id]['def_price_cumsum'][qty-1]
-                diff_sp2 = round(diff_sp2,2)
+                diff_sp2 = (near_ask[id]['def_price_cumsum'][qty-1] - near_ask[update_id]['def_price_cumsum'][qty-1])/qty
         # if (flag1) or (abs( diff_sp1  ) < ( beta * dict_type[id][order_id]['sp1'] )/ 100) : 
-        if (flag1) or (abs( diff_sp1 ) < zeta * ticksize) :
+        if (flag1) or (( abs( diff_sp1 ) <= zeta * ticksize ) and  (dict_type[id][order_id]['sp1'] + diff_sp1 > 0 ) and ( abs(dict_type[id][order_id]['sp1'] + diff_sp1  - current_book_spread) <= current_book_spread * inputs['gamma']/100 ))  :
         # if (flag1) or (round(diff_sp1,2) == 0) :
             # if ( flag2 ) or ( abs( diff_sp2 ) < ( beta * dict_type[id][order_id]['sp2'] )/ 100) :
-            if ( flag2 ) or ( abs( diff_sp2 ) < zeta * ticksize) :
+            if ( flag2 ) or (( abs( diff_sp2 ) <= zeta * ticksize ) and  (dict_type[id][order_id]['sp2'] + diff_sp2 > 0 ) and ( abs(dict_type[id][order_id]['sp2'] + diff_sp2  - current_book_spread) <= current_book_spread * inputs['gamma']/100 ))  :
             # if ( flag2 ) or (round(diff_sp2,2) == 0) :
             # keep this in the dict : 
                 dict_type[update_id][order_id] = dict_type[id].pop(order_id)
@@ -1099,7 +1097,8 @@ def modify_tick_with_trade(
     possible_quotes:dict, 
     counts : list , f , time , order_id_map:dict , 
     all_conntainers : AllOrderContainers , 
-    verified_buffer:Sorted_Updates_Buffer
+    verified_buffer:Sorted_Updates_Buffer , 
+    current_book_spread:float,
 ) : 
     
     if row['oid1'] not in order_id_map :
@@ -1142,6 +1141,7 @@ def modify_tick_with_trade(
                     all_conntainers=all_conntainers,
                     total_quoting_orders=total_quoting_orders, 
                     f = f , 
+                    current_book_spread=current_book_spread,
                     type = 'quote'
                 )
                 f.write(f"{time},TradeWindow_Modify_Order,{row['oid1']},KeepQuoteOrder,{counts[0]},{counts[1]},{id}\n")
@@ -1190,6 +1190,7 @@ def modify_tick_with_trade(
                     all_conntainers=all_conntainers,
                     total_quoting_orders=total_quoting_orders, 
                     f = f , 
+                    current_book_spread=current_book_spread,
                     type = 'def_quote'
                 )
                 f.write(f"{time},TradeWindow_Modify_Order,{row['oid1']},KeepDefQuoteOrder,{counts[0]},{counts[1]},{id}\n")
@@ -1223,7 +1224,8 @@ def modify_tick_with_trade(
                     dict_type=possible_quotes,
                     order_id=new_order_id,
                     all_conntainers=all_conntainers , 
-                    f = f  
+                    f = f  , 
+                    current_book_spread=current_book_spread
                 )
                 del possible_quotes[id][order_id]
                 f.write(f"{time},TradeWindow_Modify_Order,{new_order_id},KeepPossibleOrder,{counts[0]},{counts[1]},{id}\n")
@@ -1344,14 +1346,11 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
             
     
             time_check = row['InMarketTime']//T
-            # print( row['InMarketTime'] )
-            # print( quote ) 
-            # print( all_conntainers.book_ids )
-            # print( total_quoting_orders )
-            # print('-'*30)
             
             if row['contract_name'] == far_symbol : 
                 top_of_far_ask = row['ap1']
+            
+            current_book_spread = round(round((top_of_far_ask-near_ask[near_ask_id]['book'][0,0])/ticksize)*ticksize , 2 )
             
             trade_flag = False 
             
@@ -1437,7 +1436,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                             possible_quotes=possible_quotes ,
                             counts = [ foo1 , foo2 ] , f = f ,
                             time = time , order_id_map=order_id_map,
-                            all_conntainers=all_conntainers , verified_buffer=verified_buffer
+                            all_conntainers=all_conntainers , verified_buffer=verified_buffer , 
+                            current_book_spread=current_book_spread
                         )
                         
                     i += 1 
@@ -1562,7 +1562,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
             while (disqualified_buffer.not_empty()) and (row['InMarketTime'] >= disqualified_buffer.latest_exp()) :
                 f.write(f"{time},UpdateDisqualified,--,--,{foo1},{foo2},{disqualified_buffer[0]}\n")
                 all_conntainers.clear_id( disqualified_buffer.pop() ) 
-                
+            
+            
             # if no update windows are running save the total quoting orders to a pickle file : 
             if (not verified_buffer.not_empty()) and ( possible_update_candidate_id == 0 ) and (time_check != prev_time_check) : 
             # if (time_check < prev_time_check ) : 
@@ -1580,10 +1581,10 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                         temp2 += order['qty']  
                 
                 if temp1 == 0 : 
-                    f_result.write(f"{row['Time']},--,--,{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{0},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
+                    f_result.write(f"{row['Time']},--,--,{round(round((top_of_far_ask-near_ask[near_ask_id]['book'][0,0])/ticksize)*ticksize,2)},{0},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                 else : 
                     for sp , qty in total_quoting_orders.items() :
-                        f_result.write(f"{row['Time']},{sp},{qty},{round(top_of_far_ask-near_ask[near_ask_id]['book'][0,0],2)},{temp1},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
+                        f_result.write(f"{row['Time']},{sp},{qty},{round(round((top_of_far_ask-near_ask[near_ask_id]['book'][0,0])/ticksize)*ticksize ,2)},{temp1},{near_ask[near_ask_id]['total_qty']},{ticksize}\n")
                     
                 # with open( pickle_file_name , 'wb' ) as foo : 
                 #     pickle.dump( 
@@ -1656,6 +1657,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                         order_id = order_id,
                                         all_conntainers=all_conntainers,
                                         total_quoting_orders=total_quoting_orders, f= f , 
+                                        current_book_spread=current_book_spread,
                                         type = 'quote' if dict_type is quote_copy else 'def_quote'
                                     )
                                 else : 
@@ -1666,7 +1668,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                         dict_type = possible_quotes,
                                         order_id = order_id,
                                         all_conntainers=all_conntainers , 
-                                        f = f 
+                                        f = f , 
+                                        current_book_spread=current_book_spread
                                     )
                     del quote_copy
                     del def_quote_copy
@@ -1796,6 +1799,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                             order_id = row['oid1'],
                                             all_conntainers=all_conntainers,
                                             total_quoting_orders=total_quoting_orders, f = f , 
+                                            current_book_spread=current_book_spread,
                                             type = 'quote' if dictionary_to_use is quote else 'def_quote'
                                         )
                                         flag = True 
@@ -1914,6 +1918,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                 order_id = match[0],
                                                 all_conntainers=all_conntainers,
                                                 total_quoting_orders=total_quoting_orders, f = f , 
+                                                current_book_spread=current_book_spread,
                                                 type = 'quote' if dict_type is quote else 'def_quote'
                                             )
                                             
@@ -2029,6 +2034,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                 order_id = match[0],
                                                 all_conntainers=all_conntainers,
                                                 total_quoting_orders=total_quoting_orders, f = f, 
+                                                current_book_spread=current_book_spread,
                                                 type = 'quote' if dictionary_to_use is quote else 'def_quote'
                                             )
                                             break
@@ -2141,6 +2147,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                     order_id = order_id,
                                                     all_conntainers=all_conntainers, f =f ,
                                                     total_quoting_orders=total_quoting_orders,
+                                                    current_book_spread=current_book_spread,
                                                     type = 'quote'
                                                 )
                                                 f.write(f"{time},ModifyTickInWindow,{order_id},KeepQuoteOrder,{foo1},{foo2},{update_to_id}\n")
@@ -2169,6 +2176,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                     order_id = order_id,
                                                     all_conntainers=all_conntainers, 
                                                     total_quoting_orders=total_quoting_orders, f = f , 
+                                                    current_book_spread=current_book_spread,
                                                     type = 'def_quote'
                                                 )
                                                 f.write(f"{time},ModifyTickInWindow,{order_id},KeepDefQuoteOrder,{foo1},{foo2},{update_to_id}\n")
@@ -2200,6 +2208,7 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                         order_id = new_order_id,
                                                         all_conntainers=all_conntainers,
                                                         total_quoting_orders=total_quoting_orders, f = f, 
+                                                        current_book_spread=current_book_spread,
                                                         type = 'quote'
                                                     )
                                                     f.write(f"{time},ModifyTickInWindow,{order_id},MovePossibletoQuote,{foo1},{foo2},{update_to_id}\n")
@@ -2225,7 +2234,8 @@ with open( log_file , 'w' ) as f , open( result_file , 'w') as f_result :
                                                         dict_type = def_quote,
                                                         order_id = new_order_id,
                                                         all_conntainers=all_conntainers,
-                                                        total_quoting_orders=total_quoting_orders, f = f , 
+                                                        total_quoting_orders=total_quoting_orders, f = f ,
+                                                        current_book_spread=current_book_spread, 
                                                         type = 'def_quote'
                                                     )
                                                     f.write(f"{time},ModifyTickInWindow,{order_id},MovePossibletoDefQuote,{foo1},{foo2},{update_to_id}\n")
