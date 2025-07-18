@@ -198,3 +198,7 @@ example*
 
 
 data 
+
+
+.DS_Store
+*_copy*
