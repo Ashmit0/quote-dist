@@ -1173,7 +1173,7 @@ def modify_tick_with_trade(
             # keep the modification in quote 
             foo = make_def_quote_dict(
                 possible_dict, 
-                num_updates= quote[id][order_id]['num_updates']
+                num_updates= def_quote[id][order_id]['num_updates']
             )
             if foo : 
                 total_quoting_orders[foo['sp']] =\
